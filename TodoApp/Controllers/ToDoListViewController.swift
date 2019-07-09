@@ -13,6 +13,11 @@ import CoreData
 class ToDoListViewController: UITableViewController {
     
     var todoArray = [Item]()
+    var category: Category? {
+        didSet{
+            loadData()
+        }
+    }
     
     let filepath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("Items.plist")
     let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
@@ -21,7 +26,7 @@ class ToDoListViewController: UITableViewController {
         print(filepath!)
 
        
-      loadData()
+     
         // Uncomment the following line to preserve selection between presentations
         // self.clearsSelectionOnViewWillAppear = false
         
@@ -77,6 +82,7 @@ class ToDoListViewController: UITableViewController {
                     let newitem = Item(context: self.context)
                     newitem.title = a
                     newitem.done = false
+                    newitem.parentCategory = self.category
                     self.todoArray.append(newitem)
                     self.tableView.reloadData()
                     self.tableView.scrollToRow(at: IndexPath(row: self.todoArray.count-1, section: 0), at: .bottom, animated: true)
@@ -113,22 +119,25 @@ class ToDoListViewController: UITableViewController {
         
     }
     
-    func loadData()
+    func loadData(with request: NSFetchRequest<Item> = Item.fetchRequest())
     {
-//        let decode = PropertyListDecoder()
-//        do
-//        {
-//            let data = try  Data(contentsOf: filepath!)
-//            let decodeable = try decode.decode([Item].self, from: data)
-//            todoArray = decodeable
-//
-//
-//        } catch {
-//            print(error.localizedDescription)
-//        }
+        //        let decode = PropertyListDecoder()
+        //        do
+        //        {
+        //            let data = try  Data(contentsOf: filepath!)
+        //            let decodeable = try decode.decode([Item].self, from: data)
+        //            todoArray = decodeable
+        //
+        //
+        //        } catch {
+        //            print(error.localizedDescription)
+        //        }
         do{
-           // let request: NSFetchRequest<Item> = Item.fetchRequest()
-       todoArray =  try context.fetch(Item.fetchRequest())
+            // let request: NSFetchRequest<Item> = Item.fetchRequest()
+            let predicate = NSPredicate(format: "parentCategory.name MATCHES %@", category!.name!)
+            request.predicate = predicate
+            todoArray =  try context.fetch(request)
+            tableView.reloadData()
         }catch
         {
             print("error fetch data \(error)")
@@ -182,4 +191,33 @@ class ToDoListViewController: UITableViewController {
      }
      */
     
+    
+}
+
+extension ToDoListViewController: UISearchBarDelegate{
+    
+    fileprivate func search(_ searchBar: UISearchBar) {
+        let request : NSFetchRequest<Item> = Item.fetchRequest()
+        let predicate  = NSPredicate(format: "title CONTAINS[cd] %@", searchBar.text!)
+        request.predicate = predicate
+        request.sortDescriptors = [NSSortDescriptor(key: "title", ascending: true)]
+        loadData(with: request)
+    }
+    
+    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
+    
+        search(searchBar)
+       
+        
+    }
+    func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
+   
+        if searchBar.text?.count == 0 {
+            loadData()
+        }
+        if searchText.count > 1 {
+            search(searchBar)
+        }
+    }
+   
 }
